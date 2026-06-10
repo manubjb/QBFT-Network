@@ -1,0 +1,13 @@
+.DS_Store
+node_modules/
+dist/
+build/
+*.log
+*.tmp
+*.cache
+caches/
+*.env
+*.bak
+*.swp
+*.swo
+*.pem
