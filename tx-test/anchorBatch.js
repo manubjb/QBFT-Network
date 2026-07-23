@@ -24,7 +24,7 @@ const { JsonRpcProvider, Wallet } = require("ethers");
 
 // ==================== AJUSTE ESTES VALORES ====================
 const RPC_URL     = "http://127.0.0.1:8545";                 
-const PRIVATE_KEY = "0xc87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3";  // chave de 64 hex já usada
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
 const CSV_PATH    = "./dados/xiv-jornada-academica-de-ciencia-tecnologia-cultura-checkins.csv";
 const EVENTO_ID   = "xiv-jornada-academica-ciencia-tecnologia-cultura";
 const FP_SEED     = "QRCHECK-BATCH-v1";                       // domínio do fingerprint (evita colisão entre contextos)
@@ -76,6 +76,10 @@ function batchFingerprint(docs, seed = FP_SEED) {
 }
 
 async function main() {
+  if (!PRIVATE_KEY) {
+    throw new Error("Defina PRIVATE_KEY no ambiente antes de rodar este script.");
+  }
+
   // ---------- FONTES + AGREGADOR ----------
   const raw = fs.readFileSync(CSV_PATH, "utf8");
   const rows = parse(raw, { columns: true, skip_empty_lines: true, bom: true, trim: true });
