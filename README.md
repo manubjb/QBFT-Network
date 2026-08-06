@@ -4,6 +4,8 @@ Projeto experimental para testar uma camada de auditabilidade baseada em blockch
 
 Este repositório é usado como prova de conceito para um projeto pessoal/acadêmico. A rede é local, de testes, e não representa uma infraestrutura de produção.
 
+O ambiente experimental utiliza chaves públicas de exemplo e configuração de rede permissiva (host-allowlist e CORS abertos), adequadas a uma prova de conceito isolada e não expostas a terceiros. Uma implantação em produção exigiria geração segura de chaves de validador (idealmente em HSM ou cofre de segredos), chave de conta operacional privada e gerenciada via variável de ambiente, e restrição de acesso ao RPC — itens fora do escopo desta prova de conceito.
+
 ## Objetivo
 
 O fluxo simula a ancoragem de registros do QRCheck em uma rede blockchain local:
@@ -84,7 +86,7 @@ O `.env` é ignorado pelo Git.
 
 Também ficam fora do Git os CSVs locais, evidências geradas, estado dos nós Besu, `node_modules`, cachê e artifacts do Hardhat.
 
-## Observacoes
+## Observações
 
 - A rede Besu/QBFT usada aqui é local e experimental.
 - Os fingerprints on-chain não substituem o armazenamento off-chain dos dados originais.
