@@ -1,6 +1,5 @@
 # QBFT Network
 
-<<<<<<< HEAD
 Topologia 1 da pesquisa: rede Besu/QBFT local usada para exploração do consenso, entendimento da infraestrutura permissionada e validação inicial da camada de auditabilidade do QRCheck.
 
 Este repositório não tenta ser o ambiente mais replicável do projeto. A base Docker segue de perto o tutorial do Besu para uma rede QBFT local; o valor deste repo está no recorte experimental: como batches de check-ins podem ser representados por fingerprints criptográficos, ancorados em uma blockchain permissionada e consultados por um contrato.
@@ -13,19 +12,17 @@ Foram trabalhadas duas topologias. Esta é a primeira:
 - **Topologia 2 - integração:** repositório complementar, com maior preocupação de organização/reprodutibilidade e comunicação com a aplicação QRCheck.
 
 Assim, este repo funciona como laboratório de entendimento: ele isola a blockchain permissionada e valida o desenho de registro on-chain antes de conectar a solução a um fluxo mais completo.
-=======
+
 Projeto experimental para testar uma camada de auditabilidade baseada em blockchain permissionada Besu/QBFT. A ideia central é registrar apenas fingerprints criptograficos de batches de check-ins, mantendo os dados completos fora da blockchain.
 
 Este repositório é usado como prova de conceito para um projeto pessoal/acadêmico. A rede é local, de testes, e não representa uma infraestrutura de produção.
 
 O ambiente experimental utiliza chaves públicas de exemplo e configuração de rede permissiva (host-allowlist e CORS abertos), adequadas a uma prova de conceito isolada e não expostas a terceiros. Uma implantação em produção exigiria geração segura de chaves de validador (idealmente em HSM ou cofre de segredos), chave de conta operacional privada e gerenciada via variável de ambiente, e restrição de acesso ao RPC — itens fora do escopo desta prova de conceito.
->>>>>>> 2e879ca92a86337ff6edccc47ee1c1fe52094b24
 
 ## Objetivo
 
 O fluxo simula a camada de auditabilidade para check-ins do QRCheck:
 
-<<<<<<< HEAD
 1. Um CSV local de check-ins é usado como fonte de dados.
 2. Cada linha é convertida para um registro canônico, sem PII direta.
 3. Os registros do batch geram um fingerprint SHA-256 incremental.
@@ -53,20 +50,19 @@ Fingerprint SHA-256
                             v
                     Rede Besu/QBFT Docker
 ```
-=======
+
 1. Um CSV de check-ins é lido localmente.
 2. Cada linha é convertida para um registro canônico sem PII direta.
 3. Os registros do batch geram um fingerprint SHA-256 incremental.
 4. Apenas o fingerprint é enviado para a rede Besu/QBFT.
 5. A verificação recalcula o fingerprint e compara com o valor gravado on-chain.
 6. Uma evidência local pode ser gerada para auditoria, mas não deve ser versionada.
->>>>>>> 2e879ca92a86337ff6edccc47ee1c1fe52094b24
+
 
 ## Estrutura
 
 ```text
 .
-<<<<<<< HEAD
 ├── docker-compose.yml       # Rede local com 4 nós Besu/QBFT
 ├── genesis.json             # Genesis da rede local
 ├── qbftConfigFile.json      # Configuração usada na geração QBFT
@@ -83,17 +79,14 @@ O diretório `tx-test` guarda a etapa exploratória de transações: primeiro ha
 ```
 
 O `tx-test` concentra a prova de ancoragem direta: lê o CSV local, calcula o fingerprint do batch e grava esse hash na rede. O `qrcheck-contrato` contém a versão com smart contract, onde os fingerprints são registrados e consultados pelo contrato `RegistroDeBatches`.
->>>>>>> 2e879ca92a86337ff6edccc47ee1c1fe52094b24
 
 ## Rede Docker
 
-<<<<<<< HEAD
+
 A rede local usa quatro containers Besu em QBFT:
-=======
+
 O arquivo `tx-test/anchorBatch.js` executa a etapa sem smart contract: o hash do batch é gravado diretamente no campo `data` de uma transação.
 
-Para rodar:
->>>>>>> 2e879ca92a86337ff6edccc47ee1c1fe52094b24
 
 ```shell
 docker compose up -d
@@ -108,15 +101,8 @@ node3: http://127.0.0.1:8547
 node4: http://127.0.0.1:8548
 ```
 
-<<<<<<< HEAD
-O estado dos nós fica em `Node-*/data/` e não deve ser versionado.
-=======
-Esse arquivo não é versionado.
->>>>>>> 2e879ca92a86337ff6edccc47ee1c1fe52094b24
-
 ## Contrato
 
-<<<<<<< HEAD
 O contrato `RegistroDeBatches` registra fingerprints de batches produzidos fora da blockchain. Ele permite:
 
 - registrar um batch por `batchId`;
@@ -125,7 +111,7 @@ O contrato `RegistroDeBatches` registra fingerprints de batches produzidos fora 
 - consultar ids de batches por intervalo temporal;
 - restringir registro a organizadores autorizados;
 - delegar a administradores a gestão de organizadores.
-=======
+
 O projeto `qrcheck-contrato` contém o contrato `RegistroDeBatches`, que evolui a prova de conceito para um modelo com smart contract.
 
 O contrato permite:
@@ -135,7 +121,7 @@ O contrato permite:
 - consultar batch por identificador;
 - consultar batches por intervalo temporal;
 - controlar permissão de organizadores por administradores.
->>>>>>> 2e879ca92a86337ff6edccc47ee1c1fe52094b24
+
 
 Comandos principais:
 
@@ -164,7 +150,6 @@ npm install
 PRIVATE_KEY=0x... node anchorBatch.js
 ```
 
-<<<<<<< HEAD
 O CSV esperado fica em `tx-test/dados/` e não é versionado. As evidências geradas ficam em `tx-test/evidencias/`, também fora do Git.
 
 ## Comunicação Com A Topologia 2
@@ -184,7 +169,7 @@ Na prática, este repositório define e valida o modelo de auditabilidade. O out
 - A topologia replica a estrutura base do tutorial Besu/QBFT, com adaptações para a pesquisa.
 - Os dados completos dos check-ins permanecem off-chain.
 - A pseudonimização atual usa SHA-256 simples para prova de conceito; em produção, o correto seria HMAC com segredo do servidor para reduzir risco de reidentificação por dicionário.
-=======
+
 O `.env` é ignorado pelo Git.
 
 Também ficam fora do Git os CSVs locais, evidências geradas, estado dos nós Besu, `node_modules`, cachê e artifacts do Hardhat.
@@ -194,4 +179,4 @@ Também ficam fora do Git os CSVs locais, evidências geradas, estado dos nós B
 - A rede Besu/QBFT usada aqui é local e experimental.
 - Os fingerprints on-chain não substituem o armazenamento off-chain dos dados originais.
 - A pseudonimização atual usa SHA-256 simples para fins de prova de conceito. Em um ambiente real, o ideal seria usar HMAC com segredo do servidor para reduzir risco de reidentificação por dicionário.
->>>>>>> 2e879ca92a86337ff6edccc47ee1c1fe52094b24
+
