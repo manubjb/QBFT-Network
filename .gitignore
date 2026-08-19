@@ -11,6 +11,8 @@ caches/
 *.swp
 *.swo
 *.pem
+genesis_antigo.json
+genesis_quebrado_backup.json
 node_modules
 dados/
 Node-*/data/database/
