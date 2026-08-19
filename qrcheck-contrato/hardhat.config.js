@@ -11,5 +11,10 @@ module.exports = {
       url: "http://127.0.0.1:8545",
       accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
     },
+    besuDocker: {
+      url: "http://127.0.0.1:8545",
+      chainId: 1337,
+      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
+    },
   },
 };
