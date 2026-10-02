@@ -28,6 +28,10 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY;
 const CSV_PATH    = "./dados/jacitec2025_checkins_id_publico.csv";
 const EVENTO_ID   = "xiv-jornada-academica-ciencia-tecnologia-cultura";
 const FP_SEED     = "QRCHECK-BATCH-v1";                       // domínio do fingerprint (evita colisão entre contextos)
+// Recorte do batch: só entram os check-ins realizados no período do evento (limites inclusive).
+// O relatório exportado também traz lançamentos feitos depois da JACITEC, que ficam fora do batch.
+const EVENTO_INICIO = "2025-10-22";                           // 22/10/2025, primeiro dia do evento
+const EVENTO_FIM    = "2025-10-24";                           // 24/10/2025, último dia do evento
 // =============================================================
 
 const sha256Hex = s => crypto.createHash("sha256").update(s, "utf8").digest("hex");
@@ -36,6 +40,17 @@ const sha256Hex = s => crypto.createHash("sha256").update(s, "utf8").digest("hex
 // (Em produção, troque por HMAC com segredo do servidor para não ser reversível por dicionário.)
 const opaque = (prefix, value) =>
   prefix + "-" + sha256Hex(String(value).trim().toLowerCase()).slice(0, 12);
+
+// "24/10/2025 21:33" -> "2025-10-24": só a data, para comparar com o período do evento.
+const dataISO = br => {
+  const [date] = String(br).trim().split(/\s+/);
+  const [d, m, y] = date.split("/");
+  return `${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;
+};
+const noPeriodoDoEvento = row => {
+  const d = dataISO(row["Data/Hora Check-in"]);
+  return d >= EVENTO_INICIO && d <= EVENTO_FIM;
+};
 
 // Formato esperado do "ID Participante": UUID v4 gerado pelo QRCheck.
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -90,11 +105,17 @@ async function main() {
   const raw = fs.readFileSync(CSV_PATH, "utf8");
   const rows = parse(raw, { columns: true, skip_empty_lines: true, bom: true, trim: true });
 
+  // ---------- RECORTE PELO PERÍODO DO EVENTO ----------
+  const linhas = rows.filter(noPeriodoDoEvento);
+  const foraDoPeriodo = rows.length - linhas.length;
+  console.log("Linhas lidas do CSV    :", rows.length);
+  console.log("No período do evento   :", linhas.length, `(${EVENTO_INICIO} a ${EVENTO_FIM})`);
+  console.log("Excluídas (fora dele)  :", foraDoPeriodo);
+
   // ---------- CHECAGEM DO IDENTIFICADOR PÚBLICO (aborta antes de ancorar) ----------
-  const ids = rows.map(r => String(r["ID Participante"] ?? "").trim());
+  const ids = linhas.map(r => String(r["ID Participante"] ?? "").trim());
   const validos = ids.filter(id => UUID_V4.test(id));
-  const invalidas = rows.length - validos.length;
-  console.log("Linhas no CSV          :", rows.length);
+  const invalidas = linhas.length - validos.length;
   console.log("Com id público válido  :", validos.length);
   console.log("Participantes distintos:", new Set(validos).size);
   if (invalidas > 0) {
@@ -103,7 +124,7 @@ async function main() {
     );
   }
 
-  const registros = rows.map(toCanonical);                 // batch único = todas as linhas (N fixo)
+  const registros = linhas.map(toCanonical);               // batch único = todas as linhas do período (N fixo)
   const fingerprint = batchFingerprint(registros);
   const batchId = "B-" + fingerprint.slice(0, 8);          // id endereçado ao conteúdo
   const data = "0x" + fingerprint;                         // 32 bytes -> só o hash vai on-chain
