@@ -25,7 +25,7 @@ const { JsonRpcProvider, Wallet } = require("ethers");
 // ==================== AJUSTE ESTES VALORES ====================
 const RPC_URL     = "http://127.0.0.1:8545";                 
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
-const CSV_PATH    = "./dados/xiv-jornada-academica-de-ciencia-tecnologia-cultura-checkins.csv";
+const CSV_PATH    = "./dados/jacitec2025_checkins_id_publico.csv";
 const EVENTO_ID   = "xiv-jornada-academica-ciencia-tecnologia-cultura";
 const FP_SEED     = "QRCHECK-BATCH-v1";                       // domínio do fingerprint (evita colisão entre contextos)
 // =============================================================
@@ -36,6 +36,9 @@ const sha256Hex = s => crypto.createHash("sha256").update(s, "utf8").digest("hex
 // (Em produção, troque por HMAC com segredo do servidor para não ser reversível por dicionário.)
 const opaque = (prefix, value) =>
   prefix + "-" + sha256Hex(String(value).trim().toLowerCase()).slice(0, 12);
+
+// Formato esperado do "ID Participante": UUID v4 gerado pelo QRCheck.
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // Serialização canônica: chaves ordenadas recursivamente -> a verificação recalcula o MESMO valor.
 const sortKeys = v =>
@@ -61,7 +64,10 @@ function toCanonical(row) {
     tipo: "check-in",
     eventoId: EVENTO_ID,
     atividade: String(row["Atividade"] || "").trim(),   // título público, não é PII
-    participanteId: opaque("P", row["Email"]),          // e-mail real fica no BD
+    participanteId: "P-" + String(row["ID Participante"]).trim(),   // id público (UUID v4) do QRCheck: já é aleatório, não precisa de hash
+    // ATENÇÃO: o organizador ainda é identificado por hash do NOME, que é adivinhável
+    // num conjunto pequeno. Numa próxima versão ele precisa do mesmo tratamento do
+    // participante (id público) ou de HMAC com segredo do servidor.
     organizadorId:  opaque("O", mm ? mm[1] : fp),
     organizadorPapel: mm ? mm[2] : "desconhecido",
     ts: toISO(row["Data/Hora Check-in"])
@@ -83,6 +89,20 @@ async function main() {
   // ---------- FONTES + AGREGADOR ----------
   const raw = fs.readFileSync(CSV_PATH, "utf8");
   const rows = parse(raw, { columns: true, skip_empty_lines: true, bom: true, trim: true });
+
+  // ---------- CHECAGEM DO IDENTIFICADOR PÚBLICO (aborta antes de ancorar) ----------
+  const ids = rows.map(r => String(r["ID Participante"] ?? "").trim());
+  const validos = ids.filter(id => UUID_V4.test(id));
+  const invalidas = rows.length - validos.length;
+  console.log("Linhas no CSV          :", rows.length);
+  console.log("Com id público válido  :", validos.length);
+  console.log("Participantes distintos:", new Set(validos).size);
+  if (invalidas > 0) {
+    throw new Error(
+      `${invalidas} linha(s) com "ID Participante" vazio ou fora do formato UUID v4. Ancoragem abortada.`
+    );
+  }
+
   const registros = rows.map(toCanonical);                 // batch único = todas as linhas (N fixo)
   const fingerprint = batchFingerprint(registros);
   const batchId = "B-" + fingerprint.slice(0, 8);          // id endereçado ao conteúdo
