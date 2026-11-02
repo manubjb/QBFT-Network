@@ -63,3 +63,11 @@ antes de ancorar.
   mudou.
 
 As três ancoragens estão na mesma cadeia, e as evidências das três continuam em `tx-test/evidencias/`.
+
+## Verificação independente no ledger — 02/11/2026
+
+- Nó consultado: Node-1 isolado (sem consenso, só leitura), Besu 26.6.0 nativo.
+- Genesis que abre a cadeia: `genesis.json` versionado. Hash do bloco 0: `0x4a3cc3493a1eeebeab220695578b59838447e301af71c78a2e4e320d9fd50c0f`.
+- `eth_getTransactionByHash(0x42d1ac8ceff61362aaaef29b9b96e5c26fbafbf23c8f5afa5ca8374993f805ff)`: bloco 53010 (`0xcf12`), timestamp do bloco 2026-10-02 17:54:13 UTC, `from` = `to` = `0x627306090abab3a6e1400e9345bc60c78a8bef57`, nonce 7, gasPrice 0.
+- `input` da transação = `0x8eaafaa1ebfa1e73cd52e45f2b2f12827b71d79ed00f24fc754d90b744dc5242`, idêntico ao `fingerprint` de `evidencias/evidencia_B-8eaafaa1.json`.
+- Consulta feita diretamente ao RPC, sem o script de ancoragem.

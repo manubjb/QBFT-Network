@@ -71,7 +71,7 @@ A rede conteinerizada, os parâmetros do Caliper e os relatórios de cada execu�
 
 ## Nota sobre o genesis
 
-O `genesis.json` versionado foi alterado no commit `8952ac4` (19/08/2026), depois da criação das bases dos nós (10/06/2026). A execução registrada em `tx-test/ANCORAGEM.md` pode ter usado a configuração anterior.
+O `genesis.json` versionado abre a cadeia em que está a ancoragem citada no artigo: o hash do bloco 0 é `0x4a3cc3493a1eeebeab220695578b59838447e301af71c78a2e4e320d9fd50c0f`, conferido em 02/11/2026 (ver `tx-test/ANCORAGEM.md`).
 
 ## Segurança
 
