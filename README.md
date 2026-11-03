@@ -55,6 +55,8 @@ PRIVATE_KEY=0x... node anchorBatch.js
 
 O CSV de entrada fica em `tx-test/dados/` e as evidências geradas, em `tx-test/evidencias/`. As duas pastas ficam fora do Git. O CSV não é distribuído porque contém dados pessoais pseudonimizados.
 
+A ancoragem `B-8eaafaa1` citada no artigo se reproduz pela tag `latinoware2026` (`git checkout latinoware2026`).
+
 ### Contrato
 
 ```shell

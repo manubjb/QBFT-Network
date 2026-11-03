@@ -25,7 +25,10 @@ const { JsonRpcProvider, Wallet } = require("ethers");
 // ==================== AJUSTE ESTES VALORES ====================
 const RPC_URL     = "http://127.0.0.1:8545";                 
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
-const CSV_PATH    = "./dados/jacitec2025_checkins_id_publico.csv";
+const CSV_PATH    = "./dados/jacitec2025_checkins_operador_uuid.csv";
+// Ancoragem de referência (B-8eaafaa1, publicada no artigo): só leitura. Este batch tem de repetir a
+// mesma sequência de (participante, atividade, ts); só os campos do organizador podem mudar.
+const EVIDENCIA_REF = "evidencias/evidencia_B-8eaafaa1.json";
 const EVENTO_ID   = "xiv-jornada-academica-ciencia-tecnologia-cultura";
 const FP_SEED     = "QRCHECK-BATCH-v1";                       // domínio do fingerprint (evita colisão entre contextos)
 // Recorte do batch: só entram os check-ins realizados no período do evento (limites inclusive).
@@ -36,10 +39,18 @@ const EVENTO_FIM    = "2025-10-24";                           // 24/10/2025, úl
 
 const sha256Hex = s => crypto.createHash("sha256").update(s, "utf8").digest("hex");
 
-// Pseudonimização: identificador opaco e estável, derivado do valor real.
-// (Em produção, troque por HMAC com segredo do servidor para não ser reversível por dicionário.)
-const opaque = (prefix, value) =>
-  prefix + "-" + sha256Hex(String(value).trim().toLowerCase()).slice(0, 12);
+// A extração (TO_CHAR sem fuso) sai em UTC: "25/10/2025 00:33" (UTC) -> "24/10/2025 21:33" (-03:00).
+// America/Sao_Paulo não tem horário de verão desde 2019, então o deslocamento é fixo em 3 h.
+const DATA_HORA = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})$/;
+function utcParaBrasilia(br) {
+  const m = String(br).trim().match(DATA_HORA);
+  if (!m) throw new Error(`"data_hora" fora do formato DD/MM/YYYY HH:MM. Ancoragem abortada.`);
+  const [, d, mo, y, hh, mi] = m;
+  const t = new Date(Date.UTC(+y, +mo - 1, +d, +hh, +mi) - 3 * 3600 * 1000);
+  const z = n => String(n).padStart(2, "0");
+  return `${z(t.getUTCDate())}/${z(t.getUTCMonth() + 1)}/${t.getUTCFullYear()} ${z(t.getUTCHours())}:${z(t.getUTCMinutes())}`;
+}
+const horaLocal = row => utcParaBrasilia(row["data_hora"]);
 
 // "24/10/2025 21:33" -> "2025-10-24": só a data, para comparar com o período do evento.
 const dataISO = br => {
@@ -48,11 +59,11 @@ const dataISO = br => {
   return `${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;
 };
 const noPeriodoDoEvento = row => {
-  const d = dataISO(row["Data/Hora Check-in"]);
+  const d = dataISO(horaLocal(row));
   return d >= EVENTO_INICIO && d <= EVENTO_FIM;
 };
 
-// Formato esperado do "ID Participante": UUID v4 gerado pelo QRCheck.
+// Formato esperado dos identificadores públicos (participante e operador): UUID v4 gerado pelo QRCheck.
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // Serialização canônica: chaves ordenadas recursivamente -> a verificação recalcula o MESMO valor.
@@ -73,19 +84,18 @@ function toISO(br) {
 
 // Linha crua do CSV -> registro canônico do evento de check-in (sem PII)
 function toCanonical(row) {
-  const fp = String(row["Feito por"] || "");
-  const mm = fp.match(/^(.*?)\s*\[(.*?)\]\s*$/);   // "Fulano [Auxiliar]" -> nome + papel
+  const opId  = String(row["feito_por_id"] ?? "").trim();
+  const papel = String(row["feito_por_role"] ?? "").trim();
   return {
     tipo: "check-in",
     eventoId: EVENTO_ID,
-    atividade: String(row["Atividade"] || "").trim(),   // título público, não é PII
-    participanteId: "P-" + String(row["ID Participante"]).trim(),   // id público (UUID v4) do QRCheck: já é aleatório, não precisa de hash
-    // ATENÇÃO: o organizador ainda é identificado por hash do NOME, que é adivinhável
-    // num conjunto pequeno. Numa próxima versão ele precisa do mesmo tratamento do
-    // participante (id público) ou de HMAC com segredo do servidor.
-    organizadorId:  opaque("O", mm ? mm[1] : fp),
-    organizadorPapel: mm ? mm[2] : "desconhecido",
-    ts: toISO(row["Data/Hora Check-in"])
+    atividade: String(row["atividade_nome"] || "").trim(),   // título público, não é PII
+    participanteId: "P-" + String(row["participante_id_public"]).trim(),   // id público (UUID v4) do QRCheck: já é aleatório, não precisa de hash
+    // O organizador recebe o mesmo tratamento do participante: id público (UUID v4), sem hash.
+    // O QRCheck não guarda a autoria de check-ins feitos por admin: essas linhas vêm sem operador.
+    organizadorId:  opId ? "O-" + opId : "O-desconhecido",
+    organizadorPapel: papel || "desconhecido",
+    ts: toISO(horaLocal(row))
   };
 }
 
@@ -113,18 +123,50 @@ async function main() {
   console.log("Excluídas (fora dele)  :", foraDoPeriodo);
 
   // ---------- CHECAGEM DO IDENTIFICADOR PÚBLICO (aborta antes de ancorar) ----------
-  const ids = linhas.map(r => String(r["ID Participante"] ?? "").trim());
+  const ids = linhas.map(r => String(r["participante_id_public"] ?? "").trim());
   const validos = ids.filter(id => UUID_V4.test(id));
   const invalidas = linhas.length - validos.length;
   console.log("Com id público válido  :", validos.length);
   console.log("Participantes distintos:", new Set(validos).size);
   if (invalidas > 0) {
     throw new Error(
-      `${invalidas} linha(s) com "ID Participante" vazio ou fora do formato UUID v4. Ancoragem abortada.`
+      `${invalidas} linha(s) com "participante_id_public" vazio ou fora do formato UUID v4. Ancoragem abortada.`
+    );
+  }
+
+  // ---------- CHECAGEM DO OPERADOR (aborta antes de ancorar) ----------
+  // Operador vazio é aceito (check-in feito por admin, sem autoria no QRCheck) e vira "O-desconhecido".
+  // Operador preenchido tem de ser UUID v4 e ter papel.
+  const ops = linhas.map(r => ({
+    id: String(r["feito_por_id"] ?? "").trim(),
+    papel: String(r["feito_por_role"] ?? "").trim()
+  }));
+  const semOperador = ops.filter(o => !o.id).length;
+  const opInvalido  = ops.filter(o => o.id && !UUID_V4.test(o.id)).length;
+  const opSemPapel  = ops.filter(o => o.id && !o.papel).length;
+  console.log("Operadores distintos   :", new Set(ops.filter(o => o.id).map(o => o.id)).size);
+  console.log("Linhas sem operador    :", semOperador);
+  if (opInvalido > 0 || opSemPapel > 0) {
+    throw new Error(
+      `${opInvalido} linha(s) com "feito_por_id" fora do formato UUID v4 e ${opSemPapel} com operador sem "feito_por_role". Ancoragem abortada.`
     );
   }
 
   const registros = linhas.map(toCanonical);               // batch único = todas as linhas do período (N fixo)
+
+  // ---------- COMPARAÇÃO COM A ANCORAGEM DE REFERÊNCIA (aborta antes de ancorar) ----------
+  // Mesma sequência de (participante, atividade, ts), na mesma ordem: só o organizador pode mudar.
+  const ref = JSON.parse(fs.readFileSync(EVIDENCIA_REF, "utf8")).registros;
+  const chave = r => [r.participanteId, r.atividade, r.ts].join("\u0000");
+  const divergentes = registros.filter((r, i) => !ref[i] || chave(r) !== chave(ref[i])).length;
+  if (ref.length !== registros.length || divergentes > 0) {
+    throw new Error(
+      `Batch difere da referência ${EVIDENCIA_REF} fora dos campos do organizador ` +
+      `(N ${registros.length} x ${ref.length}, ${divergentes} posição(ões) divergente(s)). Ancoragem abortada.`
+    );
+  }
+  console.log("Igual à referência     :", `${registros.length} de ${ref.length} (participante, atividade, ts)`);
+
   const fingerprint = batchFingerprint(registros);
   const batchId = "B-" + fingerprint.slice(0, 8);          // id endereçado ao conteúdo
   const data = "0x" + fingerprint;                         // 32 bytes -> só o hash vai on-chain
@@ -133,6 +175,12 @@ async function main() {
   console.log("Check-ins (N) :", registros.length);
   console.log("Batch         :", batchId);
   console.log("Fingerprint   :", "0x" + fingerprint);
+
+  // A evidência de um batch já ancorado nunca é sobrescrita: aborta antes de enviar a transação.
+  const out = `evidencias/evidencia_${batchId}.json`;
+  if (fs.existsSync(out)) {
+    throw new Error(`${out} já existe. Ancoragem abortada para não sobrescrever a evidência.`);
+  }
 
   // ---------- BESU/QBFT: ancoragem ----------
   const provider = new JsonRpcProvider(RPC_URL);
@@ -163,9 +211,11 @@ async function main() {
     ancoragem: { rede: "besu-qbft-local", txHash: tx.hash, blockNumber: receipt.blockNumber },
     registros
   };
-  const out = `evidencias/evidencia_${batchId}.json`;
-  fs.writeFileSync(out, JSON.stringify(evidencia, null, 2), "utf8");
+  fs.writeFileSync(out, JSON.stringify(evidencia, null, 2), { encoding: "utf8", flag: "wx" });
   console.log("\n[BD] conteúdo canônico do batch salvo em:", out);
 }
 
-main().catch(console.error);
+main().catch(err => {
+  console.error(err);
+  process.exitCode = 1;   // abortou: sinaliza falha para quem chamou o script
+});
