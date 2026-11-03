@@ -151,3 +151,17 @@ A evidência `evidencia_B-8eaafaa1.json` só foi lida; o script não sobrescreve
 | Adulteração de 1 check-in (1 segundo a mais) é detectada | sim |
 | `eth_getTransactionByHash` nos 4 nós: bloco 53082, mesmo hash de bloco, `from` = `to` = conta acima, `input` igual ao fingerprint | sim |
 | Recibo da transação | `status` 0x1 |
+
+## Reorganização das pastas — 03/11/2026
+
+As entradas acima mantêm os caminhos da época. A partir desta data, a estrutura do repositório é:
+
+| Antes | Depois |
+|---|---|
+| `tx-test/` (anchorBatch.js, ANCORAGEM.md, fingerprintAdulterado.js, dados/, evidencias/) | `ancoragem/` |
+| `tx-test/hashTest.js`, `hashRegistro.js`, `sendTx.js` | `exploratorio/` |
+| `qrcheck-contrato/` | `contrato/` |
+| `Node-1` … `Node-4` | `nodes/node-1` … `nodes/node-4` |
+
+As bases dos nós foram movidas sem alteração de conteúdo: é a mesma cadeia (bloco 0 `0x4a3cc349…`), com as
+ancoragens nos blocos 53010 e 53082. A tag `latinoware2026` continua com a estrutura antiga.
