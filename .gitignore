@@ -12,12 +12,7 @@ caches/
 *.swo
 *.pem
 genesis_antigo.json
-genesis_quebrado_backup.json
 node_modules
 dados/
-Node-*/data/database/
-Node-*/data/caches/
-Node-*/data/besu.networks
-Node-*/data/besu.ports
-tx-test/evidencias/
-Node-*/data/
+nodes/*/data/
+ancoragem/evidencias/
